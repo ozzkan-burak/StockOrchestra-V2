@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stockorchestra-config
+  namespace: {{ .Values.namespace.name }}
+data:
+  postgres-connection: {{ .Values.config.postgresConnection | quote }}
+  redis-connection: {{ .Values.config.redisConnection | quote }}
+  allowed-origins: {{ .Values.config.allowedOrigins | quote }}
+  portfolio-manager-url: "http://portfolio-manager:80"
+  price-discovery-url: "http://price-discovery:80"
+  analytical-store-url: "http://analytical-store:80"
+  environment: {{ .Values.config.environment | quote }}

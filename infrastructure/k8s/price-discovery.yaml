@@ -1,0 +1,84 @@
+# ==============================================================================
+# StockOrchestra - Price Discovery Kubernetes Manifests
+# ==============================================================================
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: price-discovery
+  namespace: stockorchestra
+  labels:
+    app: price-discovery
+    tier: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: price-discovery
+  template:
+    metadata:
+      labels:
+        app: price-discovery
+        tier: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: price-discovery
+        image: stockorchestra/price-discovery:latest
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        env:
+        - name: REDIS__CONNECTIONSTRING
+          valueFrom:
+            configMapKeyRef:
+              name: stockorchestra-config
+              key: redis-connection
+        - name: DATABASE__CONNECTIONSTRING
+          valueFrom:
+            configMapKeyRef:
+              name: stockorchestra-config
+              key: postgres-connection
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: price-discovery
+  namespace: stockorchestra
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+  selector:
+    app: price-discovery
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: price-discovery-hpa
+  namespace: stockorchestra
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: price-discovery
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

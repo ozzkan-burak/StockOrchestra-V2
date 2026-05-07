@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portfolio-manager
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    app: portfolio-manager
+    tier: backend
+spec:
+  replicas: {{ .Values.portfolioManager.replicas }}
+  selector:
+    matchLabels:
+      app: portfolio-manager
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: portfolio-manager
+        tier: backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: portfolio-manager
+        image: {{ include "stockorchestra.image" (dict "imageRegistry" .Values.global.imageRegistry "image" .Values.portfolioManager.image "imageTag" .Values.portfolioManager.imageTag) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.portfolioManager.service.targetPort }}
+          protocol: TCP
+        resources:
+          requests:
+            cpu: {{ .Values.portfolioManager.resources.requests.cpu }}
+            memory: {{ .Values.portfolioManager.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.portfolioManager.resources.limits.cpu }}
+            memory: {{ .Values.portfolioManager.resources.limits.memory }}
+        env:
+        - name: DATABASE__CONNECTIONSTRING
+          valueFrom:
+            configMapKeyRef:
+              name: stockorchestra-config
+              key: postgres-connection
+        - name: REDIS__CONNECTIONSTRING
+          valueFrom:
+            configMapKeyRef:
+              name: stockorchestra-config
+              key: redis-connection
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stockorchestra-secrets
+              key: jwt-secret-key
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.portfolioManager.service.targetPort }}
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.portfolioManager.service.targetPort }}
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portfolio-manager
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    app: portfolio-manager
+spec:
+  type: {{ .Values.portfolioManager.service.type }}
+  ports:
+  - name: http
+    port: {{ .Values.portfolioManager.service.port }}
+    targetPort: {{ .Values.portfolioManager.service.targetPort }}
+    protocol: TCP
+  selector:
+    app: portfolio-manager
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: portfolio-manager-hpa
+  namespace: {{ .Values.namespace.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: portfolio-manager
+  minReplicas: {{ .Values.portfolioManager.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.portfolioManager.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.portfolioManager.autoscaling.targetCpuUtilization }}

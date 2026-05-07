@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: price-discovery
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    app: price-discovery
+    tier: worker
+spec:
+  replicas: {{ .Values.priceDiscovery.replicas }}
+  selector:
+    matchLabels:
+      app: price-discovery
+  template:
+    metadata:
+      labels:
+        app: price-discovery
+        tier: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: price-discovery
+        image: {{ include "stockorchestra.image" (dict "imageRegistry" .Values.global.imageRegistry "image" .Values.priceDiscovery.image "imageTag" .Values.priceDiscovery.imageTag) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        resources:
+          requests:
+            cpu: {{ .Values.priceDiscovery.resources.requests.cpu }}
+            memory: {{ .Values.priceDiscovery.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.priceDiscovery.resources.limits.cpu }}
+            memory: {{ .Values.priceDiscovery.resources.limits.memory }}
+        env:
+        - name: REDIS__CONNECTIONSTRING
+          valueFrom:
+            configMapKeyRef:
+              name: stockorchestra-config
+              key: redis-connection
+        - name: DATABASE__CONNECTIONSTRING
+          valueFrom:
+            configMapKeyRef:
+              name: stockorchestra-config
+              key: postgres-connection
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: price-discovery
+  namespace: {{ .Values.namespace.name }}
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: {{ .Values.priceDiscovery.service.port }}
+    targetPort: {{ .Values.priceDiscovery.service.targetPort }}
+  selector:
+    app: price-discovery
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: price-discovery-hpa
+  namespace: {{ .Values.namespace.name }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: price-discovery
+  minReplicas: {{ .Values.priceDiscovery.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.priceDiscovery.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.priceDiscovery.autoscaling.targetCpuUtilization }}

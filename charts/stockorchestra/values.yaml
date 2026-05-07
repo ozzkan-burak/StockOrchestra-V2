@@ -1,0 +1,110 @@
+global:
+  environment: development
+  imageRegistry: ghcr.io
+  imagePullPolicy: Always
+
+namespace:
+  name: stockorchestra
+  create: true
+
+apiGateway:
+  enabled: true
+  replicas: 2
+  image: stockorchestra-api-gateway
+  imageTag: latest
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCpuUtilization: 70
+
+portfolioManager:
+  enabled: true
+  replicas: 2
+  image: stockorchestra-portfolio-manager
+  imageTag: latest
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCpuUtilization: 70
+
+priceDiscovery:
+  enabled: true
+  replicas: 2
+  image: stockorchestra-price-discovery
+  imageTag: latest
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCpuUtilization: 70
+
+analyticalStore:
+  enabled: true
+  replicas: 1
+  image: stockorchestra-analytical-store
+  imageTag: latest
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  host: api.stockorchestra.local
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "60"
+    nginx.ingress.kubernetes.io/limit-connections: "100"
+
+config:
+  postgresConnection: "Host=timescaledb;Database=stockorchestra_ledger;Username=stockorchestra;Password=stockorchestra"
+  redisConnection: "localhost:6379,abortConnect=false"
+  allowedOrigins: "http://localhost:3000,http://localhost:8080"
+  environment: production
+
+secrets:
+  jwtSecretKey: ""
+  postgresPassword: ""
+  redisPassword: ""

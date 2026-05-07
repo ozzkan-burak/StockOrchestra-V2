@@ -1,0 +1,41 @@
+global:
+  environment: development
+  imageRegistry: ghcr.io
+  imagePullPolicy: Always
+
+namespace:
+  name: stockorchestra-dev
+  create: true
+
+apiGateway:
+  replicas: 1
+  imageTag: dev
+
+portfolioManager:
+  replicas: 1
+  imageTag: dev
+
+priceDiscovery:
+  replicas: 1
+  imageTag: dev
+
+analyticalStore:
+  replicas: 1
+  imageTag: dev
+
+ingress:
+  host: api-dev.stockorchestra.local
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "30"
+    nginx.ingress.kubernetes.io/limit-connections: "50"
+
+config:
+  postgresConnection: "Host=timescaledb;Database=stockorchestra_ledger;Username=stockorchestra;Password=stockorchestra_dev"
+  redisConnection: "redis:6379,abortConnect=false"
+  allowedOrigins: "http://localhost:3000,http://localhost:8080"
+  environment: development
+
+secrets:
+  jwtSecretKey: "dev_jwt_key_minimum_32_characters_long"
+  postgresPassword: "stockorchestra_dev"
+  redisPassword: "stockorchestra_dev"

@@ -1,0 +1,50 @@
+global:
+  environment: production
+  imageRegistry: ghcr.io
+  imagePullPolicy: Always
+
+namespace:
+  name: stockorchestra-prod
+  create: true
+
+apiGateway:
+  replicas: 3
+  imageTag: latest
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 20
+
+portfolioManager:
+  replicas: 3
+  imageTag: latest
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 20
+
+priceDiscovery:
+  replicas: 2
+  imageTag: latest
+  autoscaling:
+    minReplicas: 2
+    maxReplicas: 10
+
+analyticalStore:
+  replicas: 2
+  imageTag: latest
+
+ingress:
+  host: api.stockorchestra.com
+  annotations:
+    nginx.ingress.kubernetes.io/limit-rps: "60"
+    nginx.ingress.kubernetes.io/limit-connections: "100"
+
+config:
+  postgresConnection: "Host=timescaledb-prod;Database=stockorchestra_ledger;Username=stockorchestra;Password=stockorchestra"
+  redisConnection: "redis-prod:6379,abortConnect=false"
+  allowedOrigins: "https://stockorchestra.com"
+  environment: production
+
+secrets:
+  jwtSecretKey: ""
+  postgresPassword: ""
+  redisPassword: ""

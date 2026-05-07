@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: analytical-store
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    app: analytical-store
+    tier: worker
+spec:
+  replicas: {{ .Values.analyticalStore.replicas }}
+  selector:
+    matchLabels:
+      app: analytical-store
+  template:
+    metadata:
+      labels:
+        app: analytical-store
+        tier: worker
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+      - name: analytical-store
+        image: {{ include "stockorchestra.image" (dict "imageRegistry" .Values.global.imageRegistry "image" .Values.analyticalStore.image "imageTag" .Values.analyticalStore.imageTag) }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        resources:
+          requests:
+            cpu: {{ .Values.analyticalStore.resources.requests.cpu }}
+            memory: {{ .Values.analyticalStore.resources.requests.memory }}
+          limits:
+            cpu: {{ .Values.analyticalStore.resources.limits.cpu }}
+            memory: {{ .Values.analyticalStore.resources.limits.memory }}
+        env:
+        - name: REDIS__CONNECTIONSTRING
+          valueFrom:
+            configMapKeyRef:
+              name: stockorchestra-config
+              key: redis-connection
+        - name: DATABASE__CONNECTIONSTRING
+          valueFrom:
+            configMapKeyRef:
+              name: stockorchestra-config
+              key: postgres-connection
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytical-store
+  namespace: {{ .Values.namespace.name }}
+spec:
+  clusterIP: None
+  ports:
+  - name: http
+    port: {{ .Values.analyticalStore.service.port }}
+    targetPort: {{ .Values.analyticalStore.service.targetPort }}
+  selector:
+    app: analytical-store

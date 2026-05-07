@@ -1,0 +1,18 @@
+{{- $root := . -}}
+{{- $root.Values.global.imageRegistry -}}
+Installing StockOrchestra Helm Chart
+
+Release: {{ .Release.Name }}
+Namespace: {{ .Values.namespace.name }}
+
+Services:
+  - API Gateway: {{ if .Values.apiGateway.enabled }}Enabled{{ else }}Disabled{{ end }}
+  - Portfolio Manager: {{ if .Values.portfolioManager.enabled }}Enabled{{ else }}Disabled{{ end }}
+  - Price Discovery: {{ if .Values.priceDiscovery.enabled }}Enabled{{ else }}Disabled{{ end }}
+  - Analytical Store: {{ if .Values.analyticalStore.enabled }}Enabled{{ else }}Disabled{{ end }}
+
+To get the external IP of ingress:
+  kubectl get ingress -n {{ .Values.namespace.name }}
+
+To upgrade the release:
+  helm upgrade {{ .Release.Name }} ./stockorchestra -n {{ .Values.namespace.name }}
