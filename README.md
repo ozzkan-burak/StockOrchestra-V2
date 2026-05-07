@@ -1,65 +1,47 @@
-# StockOrchestra-MCP: Otonom Stok Yönetim Köprüsü
+# StockOrchestra-V2: Gerçek Zamanlı Veri Orkestrasyonu
 
-## Proje Başlığı: StockOrchestra-MCP: Otonom Stok Yönetim Köprüsü
+## Proje Başlığı: StockOrchestra-V2: Dağıtık ve Olay Güdümlü Veri Hattı
 
 ## Kısa Tanım
 
-Yapay zeka modellerinin (LLM) dış dünyadan izole yapısını kırarak, standart bir protokol (MCP) üzerinden şirketin yerel PostgreSQL veritabanına güvenli ve kontrollü erişim sağlamasıdır. Bu sunucu, modelin veritabanı şemasını anlamasına, stokları analiz etmesine ve otonom kararlar almasına olanak tanıyan bir köprü görevi görür.
+Yüksek frekanslı finansal verilerin darboğaz yaşamadan işlenebilmesi için tasarlanmış; veriyi dış API'lerden toplayıp Redis Streams üzerinden mikroservislere dağıtan, TimescaleDB ile analitik derinlik kazandıran ve Next.js arayüzü üzerinden son kullanıcıya milisaniyeler içinde ulaştıran olay güdümlü (event-driven) bir sistem mimarisidir.
 
 ---
 
 ## Senaryo
 
-Kullanıcının Claude arayüzüne veya herhangi bir MCP istemcisine "Kritik seviyenin altına düşen ürünleri kontrol et ve tedarik süreci için satın alma taleplerini oluştur" talimatını vermesiyle süreç başlar. Ajan, arka planda senin yazdığın .NET MCP sunucusuna bağlanır; veritabanından anlık stok verisini çeker, eşik değerleri analiz eder ve eksik miktarlar için satın alma tablosuna (PurchaseRequests) otomatik kayıtlar atarak kullanıcıya süreci raporlar.
+Price-Discovery servisi, dış kaynaklardan (örneğin Binance) aldığı anlık XAUUSD (Altın) fiyatını işler ve Redis Streams kanalına yayınlar. Arka planda çalışan Analytical-Store servisi bu veriyi stream üzerinden okuyarak TimescaleDB'ye kaydederken, aynı anda SignalR Hub bu güncel fiyatı WebSocket üzerinden fırlatır. Kullanıcı, sayfayı yenilemeye gerek kalmadan Next.js dashboard'u üzerindeki fiyatların ve grafiklerin canlı olarak güncellendiğini görür.
 
 ---
 
 ## Teknik Altyapı
 
-- **Çalışma Zamanı:** .NET 8.0 / 9.0
-- **Protokol:** Model Context Protocol (MCP)
-- **Veritabanı:** PostgreSQL (Docker üzerinden)
-- **İletişim:** JSON-RPC over stdio (Standart Girdi/Çıktı)
-- **ORM:** Entity Framework Core
+- **Arka Plan (Backend):** .NET 8.0 / 9.0 (Mikroservisler)
+- **Ön Yüz (Frontend):** Next.js (React Framework)
+- **Mesaj Kuyruğu:** Redis Streams (Event-Driven Architecture)
+- **Veritabanı:** TimescaleDB (Zaman serisi analitik verileri için)
+- **Gerçek Zamanlı İletişim:** SignalR (WebSockets)
+- **Konteynerleştirme:** Docker & Kubernetes
 
 ---
 
 ## Kurulum ve Başlatma
 
-### 1. Veritabanı Hazırlığı
+### 1. Mikroservis Ekosistemi ve Veritabanı Hazırlığı
 
-PostgreSQL'i Docker üzerinde hızlıca ayağa kaldırmak için ilgili dizinde şu komutu çalıştırın:
-
-```bash
-docker-compose up -d
-```
-
-2. İstemci Yapılandırması (Claude Desktop Örneği)
-   Claude Desktop yapılandırma dosyanıza (claude_desktop_config.json) aşağıdaki sunucu tanımını ekleyin:
+Sistemin belkemiğini oluşturan Redis, TimescaleDB ve .NET veri toplayıcı servislerini Docker üzerinde hızlıca ayağa kaldırmak için kök dizinde şu komutu çalıştırın:
 
 ```
-JSON
-{
-  "mcpServers": {
-    "stock-orchestra": {
-      "command": "dotnet",
-      "args": ["run", "--project", "C:/Projeler/StockOrchestra-MCP/src/StockOrchestra.Server/StockOrchestra.Server.csproj"],
-      "env": {
-        "CONNECTION_STRING": "Host=localhost;Database=StockDb;Username=postgres;Password=password"
-      }
-    }
-  }
-}
-```
 
-### 3. MCP Inspector'ı Kararlı Başlatma (Linux)
+bash
+# Tüm servis imajlarını yeniden inşa eder (--build) ve konteynerleri arka planda (-d) çalıştırır
+docker-compose up --build -d
+2. Arayüzün (Frontend) Başlatılması
+Arka planda veri akışı ve altyapı hazırlandıktan sonra, gerçek zamanlı verileri izleyeceğiniz arayüzü ayağa kaldırmak için aşağıdaki adımları izleyin:
 
-Inspector'da `disconnected` hatasını önlemek için aşağıdaki script'i kullanın:
+Bash
+# Next.js projesinin bulunduğu klasöre geçiş yapar
+cd frontend
 
-```bash
-chmod +x scripts/start-inspector.sh
-./scripts/start-inspector.sh
-```
-
-Script eski Inspector süreçlerini ve çakışan portları (6274/6277) temizler,
-tarayıcıyı otomatik açmadan Inspector'ı başlatır.
+# Next.js geliştirme sunucusunu başlatır (Varsayılan: localhost:3000)
+npm run dev
